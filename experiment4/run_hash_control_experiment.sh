@@ -66,18 +66,11 @@ for _ in {1..30}; do [[ -S "$FC_SOCKET" ]] && break; sleep 0.1; done
 START_UFFD_HANDLER=1 ./restore_vm_uffd.sh "$SNAPSHOT_PATH" "$MEM_PATH" "$UFFD_SOCKET" > /dev/null 2>&1
 LOGFILE=$(get_latest_logfile)
 
-for ((i=1; i<=ITERATIONS; i++)); do
-    echo "Processing MMDS Context Iteration $i/$ITERATIONS..."
+for ((i=1; i<=ITERATIONS; i++)); do 
+    echo "Processing Step $i/$ITERATIONS..."
 
-    # 1. Host updates the MMDS Data Store (This stays curl because it's run on YOUR host Arch machine)
-    sudo curl -s -X PUT --unix-socket "$FC_SOCKET" \
-      -H "Content-Type: application/json" \
-      --data "{\"latest\": {\"meta-data\": {\"iam-token\": \"TOKEN_ALPHA_ITERATION_$i\"}}}" \
-      "http://localhost/mmds"
+    curl -s -X POST http://172.16.0.2:8080/ -H "Content-Type: text/plain" -d "control_group_baseline_string" > /dev/null
 
-    # 2. FIX: Guest reads via wget instead of curl
-    GUEST_READ=$(ssh $SSH_OPTS root@172.16.0.2 'wget -qO- http://169.254.169.254/latest/meta-data/iam-token')
-    
     # 3. Halt microVM engine
     sudo curl -s -X PATCH --unix-socket "$FC_SOCKET" 'http://localhost/vm' \
         -H 'Content-Type: application/json' \
@@ -88,26 +81,11 @@ for ((i=1; i<=ITERATIONS; i++)); do
         -H 'Content-Type: application/json' \
         -d "{\"reset_socket_path\": \"$UFFD_SOCKET\", \"snapshot_path\": \"$SNAPSHOT_PATH\", \"mem_file_path\": \"$MEM_PATH\", \"diff_file_path\": \"$DIFF_PATH\"}" > /dev/null
         
-    # 5. Instantly patch host data store for next iteration context
-    sudo curl -s -X PUT --unix-socket "$FC_SOCKET" \
-      -H "Content-Type: application/json" \
-      --data "{\"latest\": {\"meta-data\": {\"iam-token\": \"TOKEN_BETA_ITERATION_$i\"}}}" \
-      "http://localhost/mmds"
-
     # 6. Sync hardware device layers and resume execution
     sudo ip neigh flush dev tap0 > /dev/null
     sudo curl -s -X PATCH --unix-socket "$FC_SOCKET" 'http://localhost/vm' \
         -H 'Content-Type: application/json' \
         -d '{"state": "Resumed"}' > /dev/null
-
-    # 7. FIX: Guest reads post-reset context verification using wget instead of curl
-    GUEST_POST_RESET=$(ssh $SSH_OPTS root@172.16.0.2 'wget -qO- http://169.254.169.254/latest/meta-data/iam-token')
-
-    if [[ "$GUEST_POST_RESET" == *"TOKEN_BETA"* ]]; then
-        echo "  [Status]: Success. Context shifted dynamically inside hot loop."
-    else
-        echo "  [Status]: Warning. MMDS connection dropped or failed to sync."
-    fi
 
     # 8. Harvest data metrics
     LAST_NET_LINE=$(grep "Reset Net state latency breakdown:" "$LOGFILE" | tail -n 1) || ""

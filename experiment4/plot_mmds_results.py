@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import pandas as pd
+import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -15,115 +16,101 @@ plt.rcParams.update({
     'ytick.labelsize': 9,
 })
 
-csv_file = 'mmds_microbenchmarks.csv'
-if not os.path.exists(csv_file):
-    print(f"Error: {csv_file} missing. Please execute your automated test loop first.")
+# 1. Track and load both target files
+csv_mmds = 'mmds_microbenchmarks.csv'
+csv_hash = 'hash_control_microbenchmarks.csv'
+
+if not os.path.exists(csv_mmds) or not os.path.exists(csv_hash):
+    print(f"Error: Missing target metrics. Ensure '{csv_mmds}' and '{csv_hash}' both exist.")
     exit(1)
 
-df = pd.read_csv(csv_file)
+df_mmds_raw = pd.read_csv(csv_mmds)
+df_hash_raw = pd.read_csv(csv_hash)
 
-# Drops the warmup row dynamically if still present in the file
-means = df[df['iteration'] > 1].mean()
+# Filter iterations to measured runs only (>1)
+df_mmds = df_mmds_raw[df_mmds_raw['iteration'] > 1]
+df_hash = df_hash_raw[df_hash_raw['iteration'] > 1]
 
-# --- READ EXACT FLOAT VALUES ---
-pci_total   = float(means['pci_total_us'])
-pci_trans   = float(means['pci_transport_us'])
-net_state   = float(means['net_state_us'])
+# Calculate averages
+means_mmds = df_mmds.mean()
+means_hash = df_hash.mean()
 
-rx_limiter  = float(means['rx_rate_limiter_us'])
-tx_limiter  = float(means['tx_rate_limiter_us'])
-mmds_core   = float(means['mmds_routing_us'])
-b_queues    = float(means['build_queues_us'])
-buf_reset   = float(means['buffer_reset_us'])
-reapply_act = float(means['reapply_activation_us'])
-
-# Calculate residual setup noise safely
-sum_inner_measured = rx_limiter + tx_limiter + mmds_core + b_queues + buf_reset + reapply_act
-net_state_residual = max(0.0, net_state - sum_inner_measured)
-
-fig, ax = plt.subplots(figsize=(8.5, 6.5))
-x_positions = [0, 0.7]
-bar_width = 0.4
-
-# -----------------------------------------------------------------------------
-# BAR 1: MACRO PCI DEVICE INFRASTRUCTURE (Cool-Toned Theme)
-# -----------------------------------------------------------------------------
-# Distinct deep slate blue for transport and muted ice-blue for total net state
-ax.bar(x_positions[0], [pci_trans], width=bar_width, label='PCI Transport Layer', color='#1D3557', edgecolor='black', linewidth=0.7)
-ax.bar(x_positions[0], [net_state], bottom=[pci_trans], width=bar_width, label='virtio-net backend', color='#A8DADC', edgecolor='black', linewidth=0.7)
-
-ax.annotate(f'Total Device Reset:\n{pci_total:.2f} µs', xy=(x_positions[0], pci_total), 
-            xytext=(0, 8), textcoords="offset points", ha='center', fontweight='bold', fontsize=9.5)
-
-# -----------------------------------------------------------------------------
-# BAR 2: MICRO COMPONENTS ZOOM-IN (Warm/Vibrant Theme - No Color Collisions)
-# -----------------------------------------------------------------------------
-micro_components = [rx_limiter, tx_limiter, mmds_core, b_queues, buf_reset, reapply_act, net_state_residual]
-micro_labels = [
-    'RX Rate Limiter', 
-    'TX Rate Limiter', 
-    'MMDS Network Stack', 
-    'Queue States Rebuild', 
-    'Buffer Resets', 
-    'Activation State', 
-    'Misc'
+# 2. Define targeted comparative metrics & clean labels
+metrics = [
+    'pci_total_us', 'pci_transport_us', 'net_state_us',
+    'mmds_routing_us', 'build_queues_us', 'buffer_reset_us', 'reapply_activation_us'
 ]
 
-# Fully unique palette ensuring complete visual separation from the Bar 1 blues
-micro_colors = [
-    '#E63946',  # RX Limiter: Vibrant Red
-    '#F4A261',  # TX Limiter: Sandy Orange
-    '#E9C46A',  # MMDS Core: Warm Yellow
-    '#2A9D8F',  # Queue Rebuild: Teal Green
-    '#9B5DE5',  # Kernel Buffer: Deep Purple
-    '#F15BB5',  # Activation Framework: Bright Magenta
-    '#D3D3D3'   # Setup Remainder: Light Neutral Gray
+labels = [
+    'Total PCI Net Reset', 'PCI Transport', 'Net Device State',
+    'MMDS Routing', 'Build VirtQueues', 'Buffer Reset', 'Reapply Activation State'
 ]
 
-current_bottom = 0.0
-for val, lbl, col in zip(micro_components, micro_labels, micro_colors):
-    # Plot the structural chunk slice
-    ax.bar(x_positions[1], [val], bottom=[current_bottom], width=bar_width, label=lbl, color=col, edgecolor='black', linewidth=0.7)
-    
-    # Compute the precise vertical center point coordinates of this slice
-    slice_center_y = current_bottom + (val / 2.0)
-    
-    # CONDITIONAL ANNOTATION RULES FOR TEXT OR ARROWS
-    if val >= 8.0:
-        ax.annotate(f'{val:.2f} µs', xy=(x_positions[1], slice_center_y), 
-                    ha='center', va='center', color='black', fontsize=8.5, fontweight='bold')
-    else:
-        ax.annotate(f'{val:.2f} µs', 
-                    xy=(x_positions[1] + (bar_width / 2.0), slice_center_y),  
-                    xytext=(x_positions[1] + 0.45, slice_center_y),           
-                    arrowprops=dict(
-                        arrowstyle="-|>", 
-                        connectionstyle="arc3,rad=0", 
-                        color='black', 
-                        linewidth=0.8,
-                        mutation_scale=10
-                    ),
-                    va='center', ha='left', color='black', fontsize=8.5, fontweight='bold')
-        
-    current_bottom += val
+values_mmds = [float(means_mmds[m]) for m in metrics]
+values_hash = [float(means_hash[m]) for m in metrics]
 
-# Print sub-total above column 2
-ax.annotate(f'Net State Zoom:\n{net_state:.2f} µs', xy=(x_positions[1], net_state), 
-            xytext=(0, 8), textcoords="offset points", ha='center', fontweight='bold', fontsize=9.5)
+# 3. Canvas and layout geometry initialization
+fig, ax = plt.subplots(figsize=(12, 6.5))
+
+x = np.arange(len(labels))
+width = 0.38  # Bar thickness
+
+# Render baseline aggregate mean bars
+rects1 = ax.bar(x - width/2, values_mmds, width, label='metadata function mean', 
+                color='#d62728', alpha=0.4, edgecolor='#d62728', linewidth=1.2)
+rects2 = ax.bar(x + width/2, values_hash, width, label='hash function (mmds not enabled) mean', 
+                color='#1f77b4', alpha=0.4, edgecolor='#1f77b4', linewidth=1.2)
+
+# --- HIGHLIGHT: Overlaying Raw Iteration Scatter Plots ---
+# Seed the random generator for consistent horizontal distribution spacing (jitter)
+np.random.seed(42)
+
+for idx, metric in enumerate(metrics):
+    # Extract data series matching the current metric column
+    y_data_mmds = df_mmds[metric].values
+    y_data_hash = df_hash[metric].values
+    
+    # Generate horizontal offsets centered precisely over the respective bar midpoint
+    # Using small random variance spreads (jitter) so overlapping values remain legible
+    x_mmds_jitter = np.random.normal(idx - width/2, 0.03, size=len(y_data_mmds))
+    x_hash_jitter = np.random.normal(idx + width/2, 0.03, size=len(y_data_hash))
+    
+    # Plot individual iteration marks over the transparent bars
+    ax.scatter(x_mmds_jitter, y_data_mmds, color='#b2182b', s=12, alpha=0.7, zorder=3, marker='o')
+    ax.scatter(x_hash_jitter, y_data_hash, color='#2166ac', s=12, alpha=0.7, zorder=3, marker='^')
+
+# Value labels over bars (aligned dynamically onto means)
+def autolabel(rects):
+    for rect in rects:
+        height = rect.get_height()
+        ax.annotate(f'{height:.1f}µs',
+                    xy=(rect.get_x() + rect.get_width() / 2, height),
+                    xytext=(0, 4),  
+                    textcoords="offset points",
+                    ha='center', va='bottom', fontsize=8.5, fontweight='bold', alpha=0.85)
+
+autolabel(rects1)
+autolabel(rects2)
 
 # --- GRAPH LAYOUT ADJUSTMENTS ---
-ax.set_xticks(x_positions)
-ax.set_xticklabels(['Device Level Mapping\n(Macro Log)', 'Net State Components\n(Micro Zoom)'], fontweight='bold')
-ax.set_ylabel('Execution Latency (microseconds, µs)', fontweight='bold')
-ax.set_title('Average virtio-net latency breakdown for metadata function', fontweight='bold', pad=25)
-ax.set_xlim(-0.4, 1.4) 
+ax.set_xticks(x)
+ax.set_xticklabels(labels, rotation=15, ha='right', fontweight='bold')
+ax.set_ylabel('Latency (microseconds, µs)', fontweight='bold')
+ax.set_title('Network Reset Latency Comparison: Active MMDS Subsystem vs. Hash Control Baseline', fontweight='bold', pad=25)
 
-# Clean deduplicated legends frame mapping
-handles, labels = ax.get_legend_handles_labels()
-unique_labels = dict(zip(labels, handles))
-ax.legend(unique_labels.values(), unique_labels.keys(), bbox_to_anchor=(1.02, 1), loc='upper left', frameon=True)
+# Add custom dummy elements to legend to explicitly denote scatter distribution meanings
+handles, plot_labels = ax.get_legend_handles_labels()
+from matplotlib.lines import Line2D
+custom_legend_elements = [
+    handles[0],
+    Line2D([0], [0], marker='o', color='w', markerfacecolor='#b2182b', markersize=6, label='MMDS Sample Iterations'),
+    handles[1],
+    Line2D([0], [0], marker='^', color='w', markerfacecolor='#2166ac', markersize=6, label='Hash Sample Iterations')
+]
+
+ax.legend(handles=custom_legend_elements, loc='upper right', frameon=True)
 
 plt.tight_layout()
-output_pdf = 'mmds_hierarchical_micro_breakdown.pdf'
-plt.savefig(output_pdf, dpi=300, bbox_inches='tight')
-print(f"Success! Generated wide-format chart with completely safe palette mapping at: {output_pdf}")
+output_pdf = 'experiment4_control_comparison.pdf'
+plt.savefig(output_pdf, dpi=300)
+print(f"Success! Comparative chart with overlaid iteration points written to: {output_pdf}")
