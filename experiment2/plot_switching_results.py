@@ -35,7 +35,7 @@ means = df_filtered.groupby('transition_type').mean() / 1000.0
 # Wide aspect ratio canvas setup
 fig, ax = plt.subplots(figsize=(11, 6.5))
 
-labels = ['Hash ──> JSON Workload', 'JSON ──> Hash Workload']
+labels = ['Hash ──> JSON', 'JSON ──> Hash']
 transitions = ['hash_to_json', 'json_to_hash']
 
 # Extract individual component arrays
@@ -54,20 +54,20 @@ total_latencies = [means.loc['hash_to_json', 'vmm_action_us'], means.loc['json_t
 
 # Render Stacked Columns
 bar_width = 0.45
-ax.bar(labels, handlers, label='Chameleon Handler', color='#50C878', width=bar_width, edgecolor='black', linewidth=0.7)
+ax.bar(labels, handlers, label='Chameleon UFFD Handler', color='#50C878', width=bar_width, edgecolor='black', linewidth=0.7)
 ax.bar(labels, madvises, bottom=handlers, label='Memory Eviction (madvise)', color='#FF6B6B', width=bar_width, edgecolor='black', linewidth=0.7)
 
 stack_base_3 = [h + m for h, m in zip(handlers, madvises)]
-ax.bar(labels, nets, bottom=stack_base_3, label='Net Device Reset', color='#FFD166', width=bar_width, edgecolor='black', linewidth=0.7)
+ax.bar(labels, nets, bottom=stack_base_3, label='PCI Net Reset', color='#FFD166', width=bar_width, edgecolor='black', linewidth=0.7)
 
 stack_base_4 = [b + n for b, n in zip(stack_base_3, nets)]
-ax.bar(labels, residuals, bottom=stack_base_4, label='Residual reset Overhead', color='#9B5DE5', width=bar_width, edgecolor='black', linewidth=0.7)
+ax.bar(labels, residuals, bottom=stack_base_4, label='Residual Latency', color='#9B5DE5', width=bar_width, edgecolor='black', linewidth=0.7)
 
 # --- PROFESSIONAL INTERNAL BAR & ARROW ANNOTATIONS ---
 # Loop through both bars (0 = Hash->JSON, 1 = JSON->Hash)
 for idx, trans in enumerate(transitions):
     components_ms = [handlers[idx], madvises[idx], nets[idx], residuals[idx]]
-    component_names = ['Handler', 'madvise', 'Net Reset', 'Residual']
+    component_names = ['Handler', 'madvise', 'PCI Net Reset', 'Residual']
     
     # Track the cumulative bottom point matching the layout logic
     current_bottom = 0.0
@@ -107,7 +107,7 @@ for idx, total in enumerate(total_latencies):
     ax.annotate(f'Total:\n{total:.2f} ms', xy=(idx, total), xytext=(0, 8), textcoords="offset points", ha='center', fontweight='bold', fontsize=11)
 
 ax.set_ylabel('Latency (milliseconds)', fontweight='bold')
-ax.set_title('Cross-Workload State Transition Reset Latencies', fontweight='bold', pad=20)
+ax.set_title('Cross-Workload Reset Latencies', fontweight='bold', pad=20)
 
 # Expand the right side limits slightly so pointer arrow text doesn't run into the legend bounding box
 ax.set_xlim(-0.5, 1.8)

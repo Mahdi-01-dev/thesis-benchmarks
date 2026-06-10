@@ -3,14 +3,13 @@ import os
 import pandas as pd
 
 # FIX THE SEGFAULT: Force Matplotlib to use the 'Agg' headless backend.
-# This prevents it from initializing GDK/GTK graphics structures completely.
 import matplotlib
 matplotlib.use('Agg')
 
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# Set academic plotting style
+# Set academic plotting style matching the template strictly
 sns.set_theme(style="whitegrid")
 plt.rcParams.update({
     'font.family': 'serif',
@@ -55,12 +54,11 @@ if mean_residual_ms < 0:
 # Reset Core/Memory Base represents everything except the Net Device Reset layer
 mean_vmm_core_reset_ms = mean_total_reset_ms - mean_net_reset_ms
 
-# 4. Construct Canvas Setup (Stacked vertically: 2 rows, 1 column)
-# Custom wide dimensions preserve the original side-by-side aspect ratio thickness
-fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(11, 10))
 
-# --- PLOT 1: Consistent Stacked Macro Comparison ---
-# Thick bar layout definitions
+# =============================================================================
+# --- GENERATE PDF 1: Load vs. Reset Comparison ---
+# =============================================================================
+fig1, ax1 = plt.subplots(figsize=(6.5, 5.5)) # Custom independent bounding block size
 bar_width = 0.55
 
 # Bar 1: Full Load Split
@@ -69,7 +67,7 @@ ax1.bar(['Average Snapshot Load'], [mean_vmm_core_load_ms],
 ax1.bar(['Average Snapshot Load'], [mean_initial_net_ms], 
         bottom=[mean_vmm_core_load_ms], color='#1F4E79', label='PCI Net Construction', width=bar_width, edgecolor='black', linewidth=0.7)
 
-# Bar 2: Custom Reset Split (Maintains color symmetry with the subcomponent charts)
+# Bar 2: Custom Reset Split 
 ax1.bar(['Average Snapshot Reset'], [mean_vmm_core_reset_ms], 
         color='#E2844A', label='Non-net latency', width=bar_width, edgecolor='black', linewidth=0.7)
 ax1.bar(['Average Snapshot Reset'], [mean_net_reset_ms], 
@@ -78,28 +76,35 @@ ax1.bar(['Average Snapshot Reset'], [mean_net_reset_ms],
 ax1.set_ylabel('Latency (milliseconds)', fontweight='bold')
 ax1.set_title('Load vs. Reset Comparison', fontweight='bold', pad=12)
 
-# Legend neatly placed outside to the upper right
 ax1.legend(bbox_to_anchor=(1.02, 1), loc='upper left', frameon=True)
 
-# Add explicit total path labels floating above the macro bars
+# Floating metadata annotations over the macro columns
 ax1.annotate(f'Total:\n{mean_total_load_ms:.2f} ms', xy=(0, mean_total_load_ms), xytext=(0, 6), textcoords="offset points", ha='center', fontweight='bold', fontsize=10)
 ax1.annotate(f'Total:\n{mean_total_reset_ms:.2f} ms', xy=(1, mean_total_reset_ms), xytext=(0, 6), textcoords="offset points", ha='center', fontweight='bold', fontsize=10)
 
-# Add the average net latency overlay TEXT INSIDE the baseline load bar component
-# Centers the text within the vertical boundary of the dark blue slice
+# Inner vertical slice text annotation
 ax1.annotate(f'{mean_initial_net_ms:.2f} ms', 
              xy=(0, mean_vmm_core_load_ms + (mean_initial_net_ms / 2.0)), 
              ha='center', va='center', color='white', fontweight='bold', fontsize=9.5)
 
+plt.tight_layout()
+output_macro = 'load_vs_reset_comparison.pdf'
+plt.savefig(output_macro, dpi=300, bbox_inches='tight')
+plt.close(fig1)
+print(f"Success! Macro comparison plot generated cleanly at: {output_macro}")
 
-# --- PLOT 2: Stacked Reset Breakdown with Fixed Black Callout ---
-components = ['Chameleon Handler', 'Memory Eviction (madvise)', 'PCI Net Reset', 'Residual Latency']
+
+# =============================================================================
+# --- GENERATE PDF 2: Reset Path Latency Breakdown ---
+# =============================================================================
+fig2, ax2 = plt.subplots(figsize=(6.5, 5.5))
+
+components = ['Chameleon UFFD Handler', 'Memory Eviction (madvise)', 'PCI Net Reset', 'Residual Latency']
 data_stack = [mean_handler_ms, mean_madvise_ms, mean_net_reset_ms, mean_residual_ms]
 colors2 = ['#50C878', '#FF6B6B', '#FFD166', '#9B5DE5']
 
 bottom_offset = 0.0
 for comp, val, col in zip(components, data_stack, colors2):
-    # Width kept wide and matching the macro structure layout
     ax2.bar(['Reset Breakdown'], [val], bottom=[bottom_offset], color=col, label=comp, width=0.45, edgecolor='black', linewidth=0.7)
     
     # Internal text annotation configuration 
@@ -120,12 +125,11 @@ for comp, val, col in zip(components, data_stack, colors2):
 ax2.set_ylabel('Latency (milliseconds)', fontweight='bold')
 ax2.set_title('Reset Path Latency Breakdown', fontweight='bold', pad=12)
 
-# Match layout bounding positions
+# Shadowless layout alignment logic
 ax2.legend(bbox_to_anchor=(1.02, 1), loc='upper left', frameon=True, shadow=False)
 
-# Adjust plot boundaries tightly to integrate legends without layout text clipping
 plt.tight_layout()
-
-output_img = 'load_vs_reset.pdf'
-plt.savefig(output_img, dpi=300, bbox_inches='tight')
-print(f"Success! High-resolution vertical thesis vector chart written to: {output_img}")
+output_breakdown = 'reset_path_latency_breakdown.pdf'
+plt.savefig(output_breakdown, dpi=300, bbox_inches='tight')
+plt.close(fig2)
+print(f"Success! Micro breakdown plot generated cleanly at: {output_breakdown}")
