@@ -11,10 +11,10 @@ except FileNotFoundError:
     exit(1)
 
 # 2. Filter data to strictly ensure we only use measured iterations (2 to 6)
-df_filtered = df[df['iteration'].between(2, 6)]
+#df_filtered = df[df['iteration'].between(2, 6)]
 
 # 3. Aggregate data by payload size (dirty_mb) to calculate means and standard deviations
-grouped = df_filtered.groupby('dirty_mb').agg(
+grouped = df.groupby('dirty_mb').agg(
     reset_mean=('reset_total', 'mean'),
     reset_std=('reset_total', 'std'),
     pci_mean=('pci_total_us', 'mean'),

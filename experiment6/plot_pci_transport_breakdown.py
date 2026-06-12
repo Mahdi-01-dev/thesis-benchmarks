@@ -59,10 +59,6 @@ box2['boxes'][0].set_edgecolor('#4d4d4d')
 
 ax2.set_ylabel('Latency Duration (microseconds, µs)', fontweight='bold')
 
-# Global Layout Polishing
-plt.suptitle('PCI Transport Path Latency', 
-             fontsize=13, fontweight='bold', y=0.96)
-
 # Shared Legend Setup across the panels
 legend_elements = [
     Line2D([0], [0], color='#d62728', lw=1.5, label='Median Duration'),

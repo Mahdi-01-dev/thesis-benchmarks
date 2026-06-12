@@ -11,10 +11,10 @@ fi
 
 OUTPUT_CSV="memory_dirt_results.csv"
 LOG_DIR="$HOME/firecracker_logs"
-ITERATIONS=6 # 1 warmup + 5 measured runs
+ITERATIONS=31 # 1 warmup + 5 measured runs
 
 # Scaled memory allocation brackets optimized to safely beat the 2.0s guest timeout
-PAYLOAD_SIZES_MB=(1 4 8 16 32)
+PAYLOAD_SIZES_MB=(1 4 8 16 32 64) 
 
 # Simplified clean schema tracking exactly what you requested
 echo "dirty_mb,iteration,reset_total,pci_total_us,guest_function_us" > "$OUTPUT_CSV"
@@ -50,7 +50,7 @@ fi
 for mb in "${PAYLOAD_SIZES_MB[@]}"; do
     echo "Target Size Bracket -> $mb MB Memory Allocation"
 
-    for ((i=1; i<=ITERATIONS; i++)); do
+    for ((i=0; i<ITERATIONS; i++)); do
         echo "  Iteration $i/$ITERATIONS..."
 
         cleanup_env
@@ -79,7 +79,7 @@ for mb in "${PAYLOAD_SIZES_MB[@]}"; do
         sudo curl -s -X PATCH --unix-socket "$FC_SOCKET" 'http://localhost/vm' -H 'Content-Type: application/json' -d '{"state": "Resumed"}' > /dev/null
 
         # Discard the initial warm-up run to keep data clean
-        if (( i == 1 )); then
+        if (( i == 0 )); then
             continue
         fi
 

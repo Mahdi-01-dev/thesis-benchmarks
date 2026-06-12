@@ -63,8 +63,6 @@ autolabel(rects_mmio)
 ax.set_xticks(x)
 ax.set_xticklabels(labels, fontweight='bold')
 ax.set_ylabel('Latency (microseconds, µs)', fontweight='bold')
-ax.set_title('Latency Profiles: PCI vs. MMIO', fontweight='bold', pad=20)
-
 ax.legend(loc='upper right', frameon=True)
 
 plt.tight_layout()

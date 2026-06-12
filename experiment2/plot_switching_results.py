@@ -61,7 +61,7 @@ stack_base_3 = [h + m for h, m in zip(handlers, madvises)]
 ax.bar(labels, nets, bottom=stack_base_3, label='PCI Net Reset', color='#FFD166', width=bar_width, edgecolor='black', linewidth=0.7)
 
 stack_base_4 = [b + n for b, n in zip(stack_base_3, nets)]
-ax.bar(labels, residuals, bottom=stack_base_4, label='Residual Latency', color='#9B5DE5', width=bar_width, edgecolor='black', linewidth=0.7)
+ax.bar(labels, residuals, bottom=stack_base_4, label='Remaining Latency', color='#9B5DE5', width=bar_width, edgecolor='black', linewidth=0.7)
 
 # --- PROFESSIONAL INTERNAL BAR & ARROW ANNOTATIONS ---
 # Loop through both bars (0 = Hash->JSON, 1 = JSON->Hash)
@@ -107,7 +107,6 @@ for idx, total in enumerate(total_latencies):
     ax.annotate(f'Total:\n{total:.2f} ms', xy=(idx, total), xytext=(0, 8), textcoords="offset points", ha='center', fontweight='bold', fontsize=11)
 
 ax.set_ylabel('Latency (milliseconds)', fontweight='bold')
-ax.set_title('Cross-Workload Reset Latencies', fontweight='bold', pad=20)
 
 # Expand the right side limits slightly so pointer arrow text doesn't run into the legend bounding box
 ax.set_xlim(-0.5, 1.8)

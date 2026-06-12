@@ -47,7 +47,6 @@ for patch, color in zip(box['boxes'], colors):
     patch.set_edgecolor('#4d4d4d')
 
 ax.set_ylabel('Latency (microseconds, µs)', fontweight='bold')
-ax.set_title('PCI MSI-X Reset Latency Breakdown', fontweight='bold', pad=20)
 
 from matplotlib.lines import Line2D
 legend_elements = [

@@ -74,7 +74,6 @@ ax1.bar(['Average Snapshot Reset'], [mean_net_reset_ms],
         bottom=[mean_vmm_core_reset_ms], color='#FFD166', label='Reset PCI Net Latency', width=bar_width, edgecolor='black', linewidth=0.7)
 
 ax1.set_ylabel('Latency (milliseconds)', fontweight='bold')
-ax1.set_title('Load vs. Reset Comparison', fontweight='bold', pad=12)
 
 ax1.legend(bbox_to_anchor=(1.02, 1), loc='upper left', frameon=True)
 
@@ -99,7 +98,7 @@ print(f"Success! Macro comparison plot generated cleanly at: {output_macro}")
 # =============================================================================
 fig2, ax2 = plt.subplots(figsize=(6.5, 5.5))
 
-components = ['Chameleon UFFD Handler', 'Memory Eviction (madvise)', 'PCI Net Reset', 'Residual Latency']
+components = ['Chameleon UFFD Handler', 'Memory Eviction (madvise)', 'PCI Net Reset', 'Remaining Latency']
 data_stack = [mean_handler_ms, mean_madvise_ms, mean_net_reset_ms, mean_residual_ms]
 colors2 = ['#50C878', '#FF6B6B', '#FFD166', '#9B5DE5']
 
@@ -123,7 +122,6 @@ for comp, val, col in zip(components, data_stack, colors2):
     bottom_offset += val
 
 ax2.set_ylabel('Latency (milliseconds)', fontweight='bold')
-ax2.set_title('Reset Path Latency Breakdown', fontweight='bold', pad=12)
 
 # Shadowless layout alignment logic
 ax2.legend(bbox_to_anchor=(1.02, 1), loc='upper left', frameon=True, shadow=False)
